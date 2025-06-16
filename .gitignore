@@ -5,3 +5,4 @@ __pycache__/
 *.py
 *.js
 *.csv
+node_modules/
