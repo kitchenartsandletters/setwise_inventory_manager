@@ -115,7 +115,7 @@ async def receive_refund_webhook(request: Request):
                     print("🔧 ADJUST PAYLOAD:")
                     print(f"  inventory_item_id: {inventory_item_id}")
                     print(f"  location_id: {location_id}")
-                    print(f"  adjustment: {quantity}")
+                    print(f"  adjustment (reversal): +{quantity}")
                     await adjust_inventory(inventory_item_id, location_id, quantity)
                 else:
                     print(f"⚠️ Could not reverse inventory for '{component_handle}'")

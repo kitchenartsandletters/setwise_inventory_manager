@@ -1,3 +1,4 @@
+.git
 .env
 __pycache__/
 *.pyc
@@ -6,3 +7,4 @@ __pycache__/
 *.js
 *.csv
 node_modules/
+.venv
