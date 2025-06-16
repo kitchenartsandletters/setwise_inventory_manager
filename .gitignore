@@ -2,9 +2,13 @@
 .env
 __pycache__/
 *.pyc
-.sh
+*.sh
 *.py
 *.js
 *.csv
 node_modules/
 .venv
+package.json
+package-lock.json
+linear_bulk_import.sh
+linear_import.sh
