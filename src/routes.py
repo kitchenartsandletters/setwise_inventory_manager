@@ -123,3 +123,7 @@ async def receive_refund_webhook(request: Request):
             print(f"✅ '{handle}' is not a set in refund. No action taken.")
 
     return {"status": "ok"}
+
+@router.get("/health")
+def health_check():
+    return {"status": "ok"}

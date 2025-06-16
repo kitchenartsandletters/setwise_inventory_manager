@@ -1,6 +1,9 @@
 import os
 from dotenv import load_dotenv
 
+if os.getenv("RAILWAY_ENV") != "production":
+    load_dotenv()
+
 load_dotenv()
 
 SHOP_URL = os.getenv("SHOP_URL")
