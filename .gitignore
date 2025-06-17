@@ -3,7 +3,6 @@
 __pycache__/
 *.pyc
 *.sh
-*.py
 *.js
 *.csv
 node_modules/
