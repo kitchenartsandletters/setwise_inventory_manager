@@ -10,4 +10,4 @@ node_modules/
 package.json
 package-lock.json
 linear_bulk_import.sh
-linear_import.sh
+linear_import.*
