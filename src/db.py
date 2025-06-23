@@ -60,3 +60,13 @@ class Database:
 
 db = Database()
 db.processed_events = ProcessedEvent.__table__
+
+    async def record_event(self, order_id: str, event_type: str):
+        async with self.async_session() as session:
+            event = ProcessedEvent(
+                order_id=str(order_id),
+                event_type=event_type,
+                created_at=datetime.utcnow()
+            )
+            session.add(event)
+            await session.commit()
