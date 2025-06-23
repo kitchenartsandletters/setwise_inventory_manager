@@ -77,19 +77,18 @@ class Database:
 
     async def log_webhook(self, order_id: str, event_type: str, payload: dict):
         async with self.async_session() as session:
-            stmt = text("""
-                INSERT INTO webhook_logs (id, order_id, event_type, payload_json, created_at)
-                VALUES (:id::UUID, :order_id, :event_type, :payload_json, :created_at)
-            """)
             await session.execute(
-                stmt,
-                {
-                    "id": str(uuid.uuid4()),
-                    "order_id": str(order_id) if order_id else None,
-                    "event_type": event_type,
-                    "payload_json": json.dumps(payload),
-                    "created_at": datetime.utcnow(),
-                }
+                text("""
+                    INSERT INTO webhook_logs (id, order_id, event_type, payload_json, created_at)
+                    VALUES ($1::UUID, $2, $3, $4, $5)
+                """),
+                (
+                    uuid.uuid4(),
+                    order_id,
+                    event_type,
+                    json.dumps(payload),
+                    datetime.utcnow()
+                )
             )
             await session.commit()
 
