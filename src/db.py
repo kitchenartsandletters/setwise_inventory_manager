@@ -78,7 +78,7 @@ class Database:
     async def log_webhook(self, order_id: str, event_type: str, payload: dict):
         async with self.async_session() as session:
             log = WebhookLog(
-                id=str(uuid.uuid4()),
+                id=uuid.uuid4(),
                 order_id=str(order_id) if order_id else None,
                 event_type=event_type,
                 payload_json=json.dumps(payload),
