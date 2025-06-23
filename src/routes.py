@@ -17,120 +17,132 @@ router = APIRouter()
 
 @router.post("/webhook")
 async def receive_webhook(request: Request):
-    await verify_shopify_webhook(request)
     payload = await request.json()
+    await db.log_webhook("order_created", str(payload.get("id")), payload)
 
-    order_id = str(payload.get("id"))
-    line_items = payload.get("line_items", [])
+    try:
+        await verify_shopify_webhook(request)
+        order_id = str(payload.get("id"))
+        line_items = payload.get("line_items", [])
 
-    print(f"🧾 Order {order_id} contains {len(line_items)} line item(s)")
+        print(f"🧾 Order {order_id} contains {len(line_items)} line item(s)")
+        location_id = await get_location_id()
 
-    location_id = await get_location_id()
+        for item in line_items:
+            handle = item.get("title", "").lower().replace(" ", "-")
+            quantity = item.get("quantity", 0)
 
-    for item in line_items:
-        handle = item.get("title", "").lower().replace(" ", "-")
-        quantity = item.get("quantity", 0)
+            if handle in bundle_map:
+                print(f"📦 Set detected: {handle} (qty: {quantity})")
+                for component_handle in bundle_map[handle]:
+                    product = await get_product_by_handle(component_handle)
+                    inventory_item_id = await get_inventory_item_id(product)
 
-        if handle in bundle_map:
-            print(f"📦 Set detected: {handle} (qty: {quantity})")
-            for component_handle in bundle_map[handle]:
-                product = await get_product_by_handle(component_handle)
-                inventory_item_id = await get_inventory_item_id(product)
+                    if inventory_item_id and location_id:
+                        print(f"➖ Adjusting inventory for '{component_handle}' by -{quantity}")
+                        print("🔧 ADJUST PAYLOAD:")
+                        print(f"  inventory_item_id: {inventory_item_id}")
+                        print(f"  location_id: {location_id}")
+                        print(f"  adjustment: {-quantity}")
+                        await adjust_inventory(inventory_item_id, location_id, -quantity)
+                    else:
+                        print(f"⚠️ Could not adjust inventory for '{component_handle}'")
+            else:
+                print(f"✅ '{handle}' is not a set. No action taken.")
 
-                if inventory_item_id and location_id:
-                    print(f"➖ Adjusting inventory for '{component_handle}' by -{quantity}")
-                    print("🔧 ADJUST PAYLOAD:")
-                    print(f"  inventory_item_id: {inventory_item_id}")
-                    print(f"  location_id: {location_id}")
-                    print(f"  adjustment: {-quantity}")
-                    await adjust_inventory(inventory_item_id, location_id, -quantity)
-                else:
-                    print(f"⚠️ Could not adjust inventory for '{component_handle}'")
-        else:
-            print(f"✅ '{handle}' is not a set. No action taken.")
-
-    if not await db.has_been_processed(order_id, "order_created"):
-        await db.record_event(order_id, "order_created")
-    return {"status": "ok"}
+        if not await db.has_been_processed(order_id, "order_created"):
+            await db.record_event(order_id, "order_created")
+        return {"status": "ok"}
+    except Exception as e:
+        print(f"❌ Error processing order_created webhook: {e}")
+        return {"status": "error", "message": str(e)}
 
 @router.post("/webhook/cancelled")
 async def receive_cancelled_webhook(request: Request):
-    await verify_shopify_webhook(request)
     payload = await request.json()
+    await db.log_webhook("order_cancelled", str(payload.get("id")), payload)
 
-    order_id = str(payload.get("id"))
-    line_items = payload.get("line_items", [])
+    try:
+        await verify_shopify_webhook(request)
+        order_id = str(payload.get("id"))
+        line_items = payload.get("line_items", [])
 
-    print(f"🔄 Cancelled order {order_id} contains {len(line_items)} line item(s)")
+        print(f"🔄 Cancelled order {order_id} contains {len(line_items)} line item(s)")
+        location_id = await get_location_id()
 
-    location_id = await get_location_id()
+        for item in line_items:
+            handle = item.get("title", "").lower().replace(" ", "-")
+            quantity = item.get("quantity", 0)
 
-    for item in line_items:
-        handle = item.get("title", "").lower().replace(" ", "-")
-        quantity = item.get("quantity", 0)
+            if handle in bundle_map:
+                print(f"📦 Set detected in cancelled order: {handle} (qty: {quantity})")
+                for component_handle in bundle_map[handle]:
+                    product = await get_product_by_handle(component_handle)
+                    inventory_item_id = await get_inventory_item_id(product)
 
-        if handle in bundle_map:
-            print(f"📦 Set detected in cancelled order: {handle} (qty: {quantity})")
-            for component_handle in bundle_map[handle]:
-                product = await get_product_by_handle(component_handle)
-                inventory_item_id = await get_inventory_item_id(product)
+                    if inventory_item_id and location_id:
+                        print(f"➕ Reversing inventory for '{component_handle}' by +{quantity}")
+                        print("🔧 ADJUST PAYLOAD:")
+                        print(f"  inventory_item_id: {inventory_item_id}")
+                        print(f"  location_id: {location_id}")
+                        print(f"  adjustment: {quantity}")
+                        await adjust_inventory(inventory_item_id, location_id, quantity)
+                    else:
+                        print(f"⚠️ Could not reverse inventory for '{component_handle}'")
+            else:
+                print(f"✅ '{handle}' is not a set in cancelled order. No action taken.")
 
-                if inventory_item_id and location_id:
-                    print(f"➕ Reversing inventory for '{component_handle}' by +{quantity}")
-                    print("🔧 ADJUST PAYLOAD:")
-                    print(f"  inventory_item_id: {inventory_item_id}")
-                    print(f"  location_id: {location_id}")
-                    print(f"  adjustment: {quantity}")
-                    await adjust_inventory(inventory_item_id, location_id, quantity)
-                else:
-                    print(f"⚠️ Could not reverse inventory for '{component_handle}'")
-        else:
-            print(f"✅ '{handle}' is not a set in cancelled order. No action taken.")
-
-    if not await db.has_been_processed(order_id, "order_cancelled"):
-        await db.record_event(order_id, "order_cancelled")
-    return {"status": "ok"}
+        if not await db.has_been_processed(order_id, "order_cancelled"):
+            await db.record_event(order_id, "order_cancelled")
+        return {"status": "ok"}
+    except Exception as e:
+        print(f"❌ Error processing order_cancelled webhook: {e}")
+        return {"status": "error", "message": str(e)}
 
 @router.post("/webhook/refund")
 async def receive_refund_webhook(request: Request):
-    await verify_shopify_webhook(request)
     payload = await request.json()
+    await db.log_webhook("order_refunded", str(payload.get("id")), payload)
 
-    refund_line_items = payload.get("refund_line_items", [])
-    print(f"🔄 Refund received with {len(refund_line_items)} refund line item(s)")
+    try:
+        await verify_shopify_webhook(request)
+        refund_line_items = payload.get("refund_line_items", [])
+        print(f"🔄 Refund received with {len(refund_line_items)} refund line item(s)")
+        location_id = await get_location_id()
 
-    location_id = await get_location_id()
+        for item in refund_line_items:
+            if item.get("restock_type") == "cancel":
+                print("↪️ Skipping refund line with restock_type 'cancel' to avoid double adjustment")
+                continue
+            line_item = item.get("line_item", {})
+            handle = line_item.get("title", "").lower().replace(" ", "-")
+            quantity = item.get("quantity", 0)
 
-    for item in refund_line_items:
-        if item.get("restock_type") == "cancel":
-            print("↪️ Skipping refund line with restock_type 'cancel' to avoid double adjustment")
-            continue
-        line_item = item.get("line_item", {})
-        handle = line_item.get("title", "").lower().replace(" ", "-")
-        quantity = item.get("quantity", 0)
+            if handle in bundle_map:
+                print(f"📦 Set detected in refund: {handle} (qty: {quantity})")
+                for component_handle in bundle_map[handle]:
+                    product = await get_product_by_handle(component_handle)
+                    inventory_item_id = await get_inventory_item_id(product)
 
-        if handle in bundle_map:
-            print(f"📦 Set detected in refund: {handle} (qty: {quantity})")
-            for component_handle in bundle_map[handle]:
-                product = await get_product_by_handle(component_handle)
-                inventory_item_id = await get_inventory_item_id(product)
+                    if inventory_item_id and location_id:
+                        print(f"➕ Reversing inventory for '{component_handle}' by +{quantity}")
+                        print("🔧 ADJUST PAYLOAD:")
+                        print(f"  inventory_item_id: {inventory_item_id}")
+                        print(f"  location_id: {location_id}")
+                        print(f"  adjustment (reversal): +{quantity}")
+                        await adjust_inventory(inventory_item_id, location_id, quantity)
+                    else:
+                        print(f"⚠️ Could not reverse inventory for '{component_handle}'")
+            else:
+                print(f"✅ '{handle}' is not a set in refund. No action taken.")
 
-                if inventory_item_id and location_id:
-                    print(f"➕ Reversing inventory for '{component_handle}' by +{quantity}")
-                    print("🔧 ADJUST PAYLOAD:")
-                    print(f"  inventory_item_id: {inventory_item_id}")
-                    print(f"  location_id: {location_id}")
-                    print(f"  adjustment (reversal): +{quantity}")
-                    await adjust_inventory(inventory_item_id, location_id, quantity)
-                else:
-                    print(f"⚠️ Could not reverse inventory for '{component_handle}'")
-        else:
-            print(f"✅ '{handle}' is not a set in refund. No action taken.")
-
-    order_id = str(payload.get("id"))
-    if not await db.has_been_processed(order_id, "order_refunded"):
-        await db.record_event(order_id, "order_refunded")
-    return {"status": "ok"}
+        order_id = str(payload.get("id"))
+        if not await db.has_been_processed(order_id, "order_refunded"):
+            await db.record_event(order_id, "order_refunded")
+        return {"status": "ok"}
+    except Exception as e:
+        print(f"❌ Error processing order_refunded webhook: {e}")
+        return {"status": "error", "message": str(e)}
 
 @router.get("/health")
 def health_check():

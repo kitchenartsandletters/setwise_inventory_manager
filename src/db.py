@@ -25,6 +25,15 @@ class ProcessedEvent(Base):
     event_type = Column(String, nullable=False)
     created_at = Column(DateTime, server_default=text("NOW()"))
 
+class WebhookLog(Base):
+    __tablename__ = "webhook_logs"
+
+    id = Column(String, primary_key=True)
+    order_id = Column(String, nullable=True)
+    event_type = Column(String, nullable=False)
+    payload_json = Column(String, nullable=False)
+    created_at = Column(DateTime, server_default=text("NOW()"))
+
 class Database:
     def __init__(self):
         self.engine = engine
@@ -65,8 +74,24 @@ class Database:
             session.add(event)
             await session.commit()
 
+    import uuid
+    import json
+
+    async def log_webhook(self, order_id: str, event_type: str, payload: dict):
+        async with self.async_session() as session:
+            log = WebhookLog(
+                id=str(uuid.uuid4()),
+                order_id=str(order_id) if order_id else None,
+                event_type=event_type,
+                payload_json=json.dumps(payload),
+                created_at=datetime.utcnow()
+            )
+            session.add(log)
+            await session.commit()
+
     def get_table(self, name: str):
         return Base.metadata.tables.get(name)
 
 db = Database()
 db.processed_events = ProcessedEvent.__table__
+db.webhook_logs = WebhookLog.__table__
