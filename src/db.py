@@ -48,7 +48,7 @@ class Database:
         async with self.async_session() as session:
             result = await session.execute(
                 select(ProcessedEvent).where(
-                    ProcessedEvent.order_id == order_id,
+                    ProcessedEvent.order_id == str(order_id),
                     ProcessedEvent.event_type == event_type
                 )
             )
