@@ -55,12 +55,6 @@ class Database:
             session.add(event)
             await session.commit()
 
-    def get_table(self, name: str):
-        return Base.metadata.tables.get(name)
-
-db = Database()
-db.processed_events = ProcessedEvent.__table__
-
     async def record_event(self, order_id: str, event_type: str):
         async with self.async_session() as session:
             event = ProcessedEvent(
@@ -70,3 +64,9 @@ db.processed_events = ProcessedEvent.__table__
             )
             session.add(event)
             await session.commit()
+
+    def get_table(self, name: str):
+        return Base.metadata.tables.get(name)
+
+db = Database()
+db.processed_events = ProcessedEvent.__table__
