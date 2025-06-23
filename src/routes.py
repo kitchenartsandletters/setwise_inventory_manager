@@ -49,7 +49,8 @@ async def receive_webhook(request: Request):
         else:
             print(f"✅ '{handle}' is not a set. No action taken.")
 
-    await db.record_event(order_id, "order_created")
+    if not await db.has_been_processed(order_id, "order_created"):
+        await db.record_event(order_id, "order_created")
     return {"status": "ok"}
 
 @router.post("/webhook/cancelled")
@@ -86,7 +87,8 @@ async def receive_cancelled_webhook(request: Request):
         else:
             print(f"✅ '{handle}' is not a set in cancelled order. No action taken.")
 
-    await db.record_event(order_id, "order_cancelled")
+    if not await db.has_been_processed(order_id, "order_cancelled"):
+        await db.record_event(order_id, "order_cancelled")
     return {"status": "ok"}
 
 @router.post("/webhook/refund")
@@ -125,7 +127,9 @@ async def receive_refund_webhook(request: Request):
         else:
             print(f"✅ '{handle}' is not a set in refund. No action taken.")
 
-    await db.record_event(order_id, "order_refunded")
+    order_id = payload.get("id")
+    if not await db.has_been_processed(order_id, "order_refunded"):
+        await db.record_event(order_id, "order_refunded")
     return {"status": "ok"}
 
 @router.get("/health")
