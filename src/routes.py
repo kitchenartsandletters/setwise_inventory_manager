@@ -20,7 +20,7 @@ async def receive_webhook(request: Request):
     await verify_shopify_webhook(request)
     payload = await request.json()
 
-    order_id = payload.get("id")
+    order_id = str(payload.get("id"))
     line_items = payload.get("line_items", [])
 
     print(f"🧾 Order {order_id} contains {len(line_items)} line item(s)")
@@ -58,7 +58,7 @@ async def receive_cancelled_webhook(request: Request):
     await verify_shopify_webhook(request)
     payload = await request.json()
 
-    order_id = payload.get("id")
+    order_id = str(payload.get("id"))
     line_items = payload.get("line_items", [])
 
     print(f"🔄 Cancelled order {order_id} contains {len(line_items)} line item(s)")
@@ -127,7 +127,7 @@ async def receive_refund_webhook(request: Request):
         else:
             print(f"✅ '{handle}' is not a set in refund. No action taken.")
 
-    order_id = payload.get("id")
+    order_id = str(payload.get("id"))
     if not await db.has_been_processed(order_id, "order_refunded"):
         await db.record_event(order_id, "order_refunded")
     return {"status": "ok"}
