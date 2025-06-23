@@ -1,9 +1,13 @@
 import os
+import uuid
+import json
 from datetime import datetime
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import Column, Integer, String, DateTime, text
+from sqlalchemy.future import select
 
 load_dotenv()
 
@@ -13,9 +17,6 @@ engine = create_async_engine(DATABASE_URL, echo=True)
 AsyncSessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 Base = declarative_base()
 
-
-from sqlalchemy import Column, Integer, String, DateTime, text
-from sqlalchemy.future import select
 
 class ProcessedEvent(Base):
     __tablename__ = "processed_events"
@@ -73,9 +74,6 @@ class Database:
             )
             session.add(event)
             await session.commit()
-
-    import uuid
-    import json
 
     async def log_webhook(self, order_id: str, event_type: str, payload: dict):
         async with self.async_session() as session:
